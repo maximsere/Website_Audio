@@ -9,7 +9,6 @@ import openpyxl
 import pandas as pd
 from urllib.request import urlopen
 from google.cloud import storage
-import time
 from pydub import AudioSegment
 
 def levenshtein_ratio_and_distance(s, t, ratio_calc = True):
@@ -84,10 +83,12 @@ def transcribe_file(speech_file):
         # The first alternative is the most likely one for this portion.
         return "{}".format(result.alternatives[0].transcript)
 
+# Open the QAnalyst script and process it into individual utterances
 file = open("QAnalyst_script.data")
 data = file.read()
 data_split = data.split(".")
 
+# Clean the individual utterances to reduce mistranscriptions
 new_data_split = []
 for lines in data_split:
     if len(lines) == 0:
@@ -99,15 +100,15 @@ for lines in data_split:
 df = pd.DataFrame(columns = ['filename', 'stt_text', 'max_lev_dist_text', 'ratio'])
 
 for filename in os.listdir('./qanalyst_phrases'):
-    # sound = AudioSegment.from_wav('./qanalyst_phrases/' + filename)
-    # sound = sound.set_channels(1)
     print(filename)
     stt_output = transcribe_file('./qanalyst_phrases/' + filename)
     lev_ratio_list = []
+    # Calculate the L-distance between the transcribe utterance and all the possible utterances
     if stt_output != None:
         for lines in new_data_split:
             lev_number = levenshtein_ratio_and_distance(stt_output, lines)
             lev_ratio_list.append(lev_number)
+        # Take the max of the list and output it into a new df row
         max_lev = max(lev_ratio_list)
         index_of_max = lev_ratio_list.index(max_lev)
         df.loc[len(df.index)] = [filename, stt_output, new_data_split[index_of_max], max_lev]
@@ -115,65 +116,3 @@ for filename in os.listdir('./qanalyst_phrases'):
         df.loc[len(df.index)] = [filename, stt_output, "", ""]
 
 df.to_csv('QAnalyst_stt_data.csv')
-
-
-
-
-
-
-#problematic_phrases = []
-
-# for filename in os.listdir('./male/old/VAD_output/'):
-#     if filename != '.DS_Store' and filename != 'speech_predictions.tsv':
-#         for vad_file in os.listdir('./male/old/VAD_output/' + filename):
-#             if  'wav' in vad_file:
-#                 print(filename, vad_file)
-#                 phrase_number = filename[-2:].strip("0")
-#                 segmented_phrase = total_list_phrases[int(phrase_number)].split(".")
-#                 text = transcribe_file('./male/old/VAD_output/' + filename + "/" + vad_file)
-#                 ratio_list = []
-#                 if text != None:
-#                     for original_text in segmented_phrase:
-#                         ratio_list.append(float(levenshtein_ratio_and_distance(text, original_text, ratio_calc = True)))
-#                     max_value = max(ratio_list)
-#                     max_index = ratio_list.index(max_value)
-#                     df.loc[len(df.index)] = [filename, vad_file, text, segmented_phrase[max_index], ratio_list[max_index]]
-#                 else:
-#                     problematic_phrases.append(filename + '/' + vad_file)
-# df.to_csv('STT_utterance_by_utterance_male.csv')
-
-
-# for filename in os.listdir('./female/old/VAD_output/'):
-#     if filename != '.DS_Store' and filename != 'speech_predictions.tsv':
-#         for vad_file in os.listdir('./female/old/VAD_output/' + filename):
-#             if  'wav' in vad_file:
-#                 print(filename, vad_file)
-#                 phrase_number = filename[-2:].strip("0")
-#                 segmented_phrase = total_list_phrases[int(phrase_number)].split(".")
-#                 text = transcribe_file('./female/old/VAD_output/' + filename + "/" + vad_file)
-#                 ratio_list = []
-#                 if text != None:
-#                     for original_text in segmented_phrase:
-#                         ratio_list.append(float(levenshtein_ratio_and_distance(text, original_text, ratio_calc = True)))
-#                     max_value = max(ratio_list)
-#                     max_index = ratio_list.index(max_value)
-#                     df.loc[len(df.index)] = [filename, vad_file, text, segmented_phrase[max_index], ratio_list[max_index]]
-#                 else:
-#                     problematic_phrases.append(filename + '/' + vad_file)
-
-# df.to_csv('STT_utterance_by_utterance_female.csv')
-                
-
-
-
-
-
-# df = pd.read_csv('STT_utterance_by_utterance_male.csv') 
-# df.sort_values(by = ['Ratio'], ascending = False)
-
-# df_short = df.loc[df['Ratio'] > 0.86]
-
-# df_short['shortened_uri'] = df_short['total_uri'].apply(lambda x: x[-14:])
-
-# for row in range(len(df_short)):
-#     os.system('cp ./male/old/VAD_output/{}/{} ./male/old/VAD_output/best/{}_{}'.format(df_short.iloc[row]['speaker'], df_short.iloc[row]['vad_file'], df_short.iloc[row]['speaker'], df_short.iloc[row]['vad_file']))
